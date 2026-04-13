@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from app.models.job import TranslationJob
+from models.job import TranslationJob
 
 
 SUPPORTED_EXTS = {".pdf", ".docx", ".txt", ".md"}
