@@ -4,8 +4,9 @@ import typer
 from config import load_settings
 from services.ingestion import discover_inputs, detect_format, create_job
 from services.extraction import extract_document
-from utils.logging import setup_logger, log_event
 from services.ocr import select_pages_for_ocr, run_ocr
+from services.chunking import chunk_document
+from utils.logging import setup_logger, log_event
 
 app = typer.Typer()
 
@@ -66,6 +67,25 @@ def translate(
 
         ocr_used_pages = [p.number for p in document.pages if p.ocr_used]
         typer.echo(f"[OCR] {f.name} | used_on_pages={ocr_used_pages}")
+
+        # 4) Chunking
+        chunks = chunk_document(
+            document=document,
+            max_tokens=settings.chunking.max_tokens,
+            overlap_tokens=settings.chunking.overlap_tokens,
+        )
+
+        if chunks:
+            avg_chunk_tokens = sum(c.token_count for c in chunks) / len(chunks)
+            max_chunk_tokens = max(c.token_count for c in chunks)
+        else:
+            avg_chunk_tokens = 0.0
+            max_chunk_tokens = 0
+
+        typer.echo(
+            f"[CHUNKING] {f.name} | chunks={len(chunks)} "
+            f"| avg_tokens={avg_chunk_tokens:.1f} | max_tokens={max_chunk_tokens}"
+        )
 
 
 if __name__ == "__main__":
