@@ -5,6 +5,7 @@ from config import load_settings
 from services.ingestion import discover_inputs, detect_format, create_job
 from services.extraction import extract_document
 from utils.logging import setup_logger, log_event
+from services.ocr import select_pages_for_ocr, run_ocr
 
 app = typer.Typer()
 
@@ -50,12 +51,9 @@ def translate(
         # 2) Extract native content
         document = extract_document(Path(f), target, settings)
 
-        # 3) OCR candidate pages (quality-based)
-        ocr_candidate_pages = [
-            p.number
-            for p in document.pages
-            if (p.extraction_confidence or 0.0) < settings.extraction.min_quality_score
-        ]
+        # 3) OCR decision + placeholder OCR
+        ocr_candidate_pages = select_pages_for_ocr(document, settings)
+        document = run_ocr(document, ocr_candidate_pages, settings)
 
         avg_conf = 0.0
         if document.pages:
@@ -65,6 +63,9 @@ def translate(
             f"[EXTRACTED] {f.name} | pages={len(document.pages)} "
             f"| ocr_candidates={ocr_candidate_pages} | avg_conf={avg_conf:.3f}"
         )
+
+        ocr_used_pages = [p.number for p in document.pages if p.ocr_used]
+        typer.echo(f"[OCR] {f.name} | used_on_pages={ocr_used_pages}")
 
 
 if __name__ == "__main__":
