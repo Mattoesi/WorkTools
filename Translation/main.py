@@ -8,6 +8,7 @@ from services.ocr import select_pages_for_ocr, run_ocr
 from services.chunking import chunk_document
 from utils.logging import setup_logger, log_event
 from services.translation import translate_chunks
+from services.validation import validate_translation
 
 app = typer.Typer()
 
@@ -98,6 +99,21 @@ def translate(
             f"[TRANSLATION] {f.name} | translated_chunks={translated_count}/{len(translated_chunks)}"
         )
 
+
+        report = validate_translation(
+            chunks=translated_chunks,
+            min_score=settings.validation.min_qc_score,
+        )
+
+        typer.echo(
+            f"[VALIDATION] {f.name} | score={report.score:.3f} "
+            f"| passed={report.passed} | issues={len(report.issues)}"
+        )
+
+        for issue in report.issues:
+            typer.echo(
+                f"  - [{issue.severity.upper()}] {issue.code}: {issue.message}"
+            )
 
 if __name__ == "__main__":
     app()
