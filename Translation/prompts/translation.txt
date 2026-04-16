@@ -1,0 +1,10 @@
+Translate the content to {target_language}.
+
+Rules:
+- Faithful translation only.
+- Preserve structure, numbering, references, legal citations, and placeholders.
+- Do not summarize or paraphrase.
+- Keep codes/acronyms unless translation is required.
+- Keep table/list formatting markers.
+
+Return translated text only.

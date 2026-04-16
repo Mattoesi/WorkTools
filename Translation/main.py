@@ -10,6 +10,7 @@ from utils.logging import setup_logger, log_event
 from services.translation import translate_chunks
 from services.validation import validate_translation
 from services.rendering import render_translated_docx, write_metadata_sidecar
+from services.reconstruction import cleanup_document_text
 
 app = typer.Typer()
 
@@ -71,6 +72,11 @@ def translate(
         ocr_used_pages = [p.number for p in document.pages if p.ocr_used]
         typer.echo(f"[OCR] {f.name} | used_on_pages={ocr_used_pages}")
 
+        # 3.5) OCR cleanup / reconstruction
+        document = cleanup_document_text(document, settings)
+        typer.echo(f"[RECONSTRUCTION] {f.name} | status=done")
+
+
         # 4) Chunking
         chunks = chunk_document(
             document=document,
@@ -93,13 +99,13 @@ def translate(
         translated_chunks = translate_chunks(
             chunks=chunks,
             target_language=target,
+            settings=settings,
         )
 
         translated_count = sum(1 for c in translated_chunks if c.status.value == "translated")
         typer.echo(
             f"[TRANSLATION] {f.name} | translated_chunks={translated_count}/{len(translated_chunks)}"
         )
-
 
         report = validate_translation(
             chunks=translated_chunks,
@@ -112,9 +118,7 @@ def translate(
         )
 
         for issue in report.issues:
-            typer.echo(
-                f"  - [{issue.severity.upper()}] {issue.code}: {issue.message}"
-            )
+            typer.echo(f"  - [{issue.severity.upper()}] {issue.code}: {issue.message}")
 
         # 5) Render output DOCX
         output_docx = render_translated_docx(

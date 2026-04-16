@@ -35,6 +35,10 @@ class TranslationConfig(BaseModel):
     target_language: str = "ENG"
     glossary_path: Path | None = None
 
+    # new
+    api_key: str | None = None
+    max_output_tokens: int = 4000
+
 
 class RetryConfig(BaseModel):
     max_attempts: int = 4
@@ -48,9 +52,11 @@ class ValidationConfig(BaseModel):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parent / ".env",
+        env_file_encoding="utf-8",
         env_prefix="TT_",
         env_nested_delimiter="__",
-        extra="ignore"
+        extra="ignore",
     )
 
     paths: PathConfig = Field(default_factory=PathConfig)
