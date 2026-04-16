@@ -7,6 +7,7 @@ from services.extraction import extract_document
 from services.ocr import select_pages_for_ocr, run_ocr
 from services.chunking import chunk_document
 from utils.logging import setup_logger, log_event
+from services.translation import translate_chunks
 
 app = typer.Typer()
 
@@ -85,6 +86,16 @@ def translate(
         typer.echo(
             f"[CHUNKING] {f.name} | chunks={len(chunks)} "
             f"| avg_tokens={avg_chunk_tokens:.1f} | max_tokens={max_chunk_tokens}"
+        )
+
+        translated_chunks = translate_chunks(
+            chunks=chunks,
+            target_language=target,
+        )
+
+        translated_count = sum(1 for c in translated_chunks if c.status.value == "translated")
+        typer.echo(
+            f"[TRANSLATION] {f.name} | translated_chunks={translated_count}/{len(translated_chunks)}"
         )
 
 
