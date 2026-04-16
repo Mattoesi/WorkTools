@@ -9,6 +9,7 @@ from services.chunking import chunk_document
 from utils.logging import setup_logger, log_event
 from services.translation import translate_chunks
 from services.validation import validate_translation
+from services.rendering import render_translated_docx, write_metadata_sidecar
 
 app = typer.Typer()
 
@@ -114,6 +115,30 @@ def translate(
             typer.echo(
                 f"  - [{issue.severity.upper()}] {issue.code}: {issue.message}"
             )
+
+        # 5) Render output DOCX
+        output_docx = render_translated_docx(
+            source_document=document,
+            translated_chunks=translated_chunks,
+            translated_dir=settings.paths.translated_dir,
+            target_language=target,
+        )
+
+        # 6) Metadata sidecar
+        ocr_used_pages = [p.number for p in document.pages if p.ocr_used]
+        sidecar = write_metadata_sidecar(
+            source_document=document,
+            translated_chunks=translated_chunks,
+            output_docx_path=output_docx,
+            qc_score=report.score,
+            qc_passed=report.passed,
+            issues_count=len(report.issues),
+            job_id=job.id,
+            ocr_pages=ocr_used_pages,
+        )
+
+        typer.echo(f"[RENDER] {f.name} | output={output_docx}")
+        typer.echo(f"[METADATA] {f.name} | sidecar={sidecar}")
 
 if __name__ == "__main__":
     app()
