@@ -1,85 +1,61 @@
-# services/translation.py
-from __future__ import annotations
+import time
+import pyaudiowpatch as pyaudio
 
-from tenacity import retry, stop_after_attempt, wait_exponential
-from openai import OpenAI
+TEST_SECONDS = 3
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
 
-from models.chunk import Chunk, ChunkStatus
-from config import Settings
+p = pyaudio.PyAudio()
 
+loopback_devices = []
+for i in range(p.get_device_count()):
+    dev = p.get_device_info_by_index(i)
+    if dev.get("isLoopbackDevice"):
+        loopback_devices.append(dev)
 
-def _build_prompt(source_text: str, target_language: str) -> str:
-    return f"""
-You are a professional tender-document translator.
+print("Loopback devices found:")
+for dev in loopback_devices:
+    print(f'{dev["index"]}: {dev["name"]} | rate={int(dev["defaultSampleRate"])} | channels={dev["maxInputChannels"]}')
 
-TASK:
-Translate the SOURCE_TEXT into {target_language}.
+print("\nPlay audio now on the device you want to test...\n")
 
-STRICT RULES:
-- Preserve structure and ordering.
-- Do NOT summarize.
-- Do NOT omit content.
-- Preserve numbering, references, legal citations, article numbers.
-- Preserve placeholders/tokens exactly if present.
-- Keep table-like lines and list markers intact where possible.
-- Keep acronyms/codes unless clearly translatable.
+for dev in loopback_devices:
+    idx = dev["index"]
+    rate = int(dev["defaultSampleRate"])
+    channels = int(dev["maxInputChannels"])
 
-Return ONLY translated text.
+    print(f"Testing device {idx}: {dev['name']}")
 
-SOURCE_TEXT:
-{source_text}
-""".strip()
+    frames = []
+    try:
+        stream = p.open(
+            format=FORMAT,
+            channels=channels,
+            rate=rate,
+            input=True,
+            input_device_index=idx,
+            frames_per_buffer=CHUNK,
+            start=False
+        )
 
+        stream.start_stream()
+        start = time.time()
 
-@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=20))
-def _translate_once(client: OpenAI, model: str, prompt: str, max_output_tokens: int) -> str:
-    # Responses API
-    resp = client.responses.create(
-        model=model,
-        input=prompt,
-        max_output_tokens=max_output_tokens,
-    )
-    return (resp.output_text or "").strip()
-
-
-def translate_chunks(
-    chunks: list[Chunk],
-    target_language: str,
-    settings: Settings,
-) -> list[Chunk]:
-    api_key = settings.translation.api_key
-    if not api_key:
-        raise RuntimeError("Missing TT_TRANSLATION__API_KEY")
-        # fallback: keep placeholder behavior if key is missing
-        for c in chunks:
-            c.translated_text = f"[{target_language}] {c.source_text}"
-            c.status = ChunkStatus.TRANSLATED
-            c.warnings.append("no_api_key_placeholder_translation")
-        return chunks
-
-    client = OpenAI(api_key=api_key)
-
-    for c in chunks:
-        try:
-            prompt = _build_prompt(c.source_text, target_language)
-            translated = _translate_once(
-                client=client,
-                model=settings.translation.model,
-                prompt=prompt,
-                max_output_tokens=settings.translation.max_output_tokens,
-            )
-
-            if not translated:
-                c.status = ChunkStatus.FAILED
-                c.warnings.append("empty_translation_response")
-                c.translated_text = ""
+        while time.time() - start < TEST_SECONDS:
+            available = stream.get_read_available()
+            if available >= CHUNK:
+                data = stream.read(CHUNK, exception_on_overflow=False)
+                frames.append(data)
             else:
-                c.translated_text = translated
-                c.status = ChunkStatus.TRANSLATED
+                time.sleep(0.01)
 
-        except Exception as ex:
-            c.status = ChunkStatus.FAILED
-            c.translated_text = ""
-            c.warnings.append(f"translation_error: {type(ex).__name__}: {ex}")
+        stream.stop_stream()
+        stream.close()
 
-    return chunks
+        total_bytes = sum(len(f) for f in frames)
+        print(f"  Frames: {len(frames)} | Bytes: {total_bytes}")
+
+    except Exception as e:
+        print(f"  ERROR: {e}")
+
+p.terminate()

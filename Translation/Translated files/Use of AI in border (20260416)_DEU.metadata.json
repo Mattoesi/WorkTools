@@ -1,0 +1,16 @@
+{
+  "job_id": "45cd6748-5799-4612-9018-b81ff4ccc05d",
+  "timestamp_utc": "2026-04-16T22:02:44.994206+00:00",
+  "source_path": "Original files\\Use of AI in border (20260416).docx",
+  "source_format": "docx",
+  "source_language": null,
+  "target_language": "DEU",
+  "pages": 1,
+  "ocr_pages": [],
+  "chunks_total": 3,
+  "chunks_translated": 3,
+  "qc_score": 0.9,
+  "qc_passed": true,
+  "qc_issues_count": 1,
+  "output_docx": "Translated files\\Use of AI in border (20260416)_DEU.docx"
+}
