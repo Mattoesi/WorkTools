@@ -49,6 +49,7 @@ def translate_chunks(
 ) -> list[Chunk]:
     api_key = settings.translation.api_key
     if not api_key:
+        raise RuntimeError("Missing TT_TRANSLATION__API_KEY")
         # fallback: keep placeholder behavior if key is missing
         for c in chunks:
             c.translated_text = f"[{target_language}] {c.source_text}"

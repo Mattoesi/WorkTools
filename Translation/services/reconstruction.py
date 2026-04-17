@@ -31,7 +31,7 @@ def cleanup_document_text(document: Document, settings: Settings) -> Document:
         # no API key: skip cleanup safely
         return document
 
-    prompt_path = Path("prompts/ocr_cleanup.txt")
+    prompt_path = Path(__file__).resolve().parents[1] / "prompts" / "ocr_cleanup.txt"
     system_prompt = _load_prompt(prompt_path)
 
     client = OpenAI(api_key=settings.translation.api_key)

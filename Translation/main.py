@@ -56,7 +56,7 @@ def translate(
         # 2) Extract native content
         document = extract_document(Path(f), target, settings)
 
-        # 3) OCR decision + placeholder OCR
+        # 3) OCR decision
         ocr_candidate_pages = select_pages_for_ocr(document, settings)
         document = run_ocr(document, ocr_candidate_pages, settings)
 
@@ -72,10 +72,9 @@ def translate(
         ocr_used_pages = [p.number for p in document.pages if p.ocr_used]
         typer.echo(f"[OCR] {f.name} | used_on_pages={ocr_used_pages}")
 
-        # 3.5) OCR cleanup / reconstruction
+        typer.echo(f"[RECONSTRUCTION] {f.name} | status=started")
         document = cleanup_document_text(document, settings)
         typer.echo(f"[RECONSTRUCTION] {f.name} | status=done")
-
 
         # 4) Chunking
         chunks = chunk_document(
